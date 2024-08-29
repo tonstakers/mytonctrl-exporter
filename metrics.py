@@ -14,7 +14,9 @@ local_wallet_balance_metric = Gauge('myton_local_validator_wallet_balance', 'Bal
 
 # Дополнительные метрики
 mytoncore_status_metric = Info('myton_mytoncore_status', 'Status of Mytoncore', registry=registry)
+mytoncore_uptime_metric = Gauge('myton_mytoncore_uptime', 'Uptime of Mytoncore in seconds', registry=registry)
 local_validator_status_metric = Info('myton_local_validator_status', 'Status of Local Validator', registry=registry)
+local_validator_uptime_metric = Gauge('myton_local_validator_uptime', 'Uptime of Local Validator in seconds', registry=registry)
 local_validator_out_of_sync_metric = Gauge('myton_local_validator_out_of_sync', 'Local validator out of sync in seconds', registry=registry)
 local_validator_last_state_serialization_metric = Gauge('myton_local_validator_last_state_serialization', 'Blocks since last state serialization', registry=registry)
 local_validator_database_size_metric = Gauge('myton_local_validator_database_size', 'Local validator database size in GB', registry=registry)
@@ -28,6 +30,19 @@ wallet_address_info_metric = Info('myton_wallet_address', 'Local validator walle
 
 # Регулярное выражение для удаления управляющих символов ANSI
 ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+
+def parse_uptime(uptime_str):
+    """Парсинг строки времени работы и преобразование в секунды."""
+    time_value, unit = uptime_str.split()
+    time_value = int(time_value)
+    if 'day' in unit:
+        return time_value * 86400  # Конвертация дней в секунды
+    elif 'hour' in unit:
+        return time_value * 3600  # Конвертация часов в секунды
+    elif 'minute' in unit:
+        return time_value * 60  # Конвертация минут в секунды
+    else:
+        return time_value  # Предполагаем, что это уже секунды
 
 def collect_metrics():
     # Выполняем команду и получаем её вывод
@@ -49,7 +64,9 @@ def collect_metrics():
     public_adnl_address = "unknown"
     wallet_address = "unknown"
     mytoncore_status = "unknown"
+    mytoncore_uptime = -100
     local_validator_status = "unknown"
+    local_validator_uptime = -100
     local_validator_out_of_sync = -100
     local_validator_last_state_serialization = -100
     local_validator_database_size = -100
@@ -88,9 +105,15 @@ def collect_metrics():
             except ValueError:
                 local_wallet_balance = -100
         elif 'Mytoncore status:' in line:
-            mytoncore_status = line.split(':')[-1].strip().split(',')[0]
+            parts = line.split(':')[-1].strip().split(',')
+            mytoncore_status = parts[0].strip()
+            if len(parts) > 1:
+                mytoncore_uptime = parse_uptime(parts[1].strip())
         elif 'Local validator status:' in line:
-            local_validator_status = line.split(':')[-1].strip().split(',')[0]
+            parts = line.split(':')[-1].strip().split(',')
+            local_validator_status = parts[0].strip()
+            if len(parts) > 1:
+                local_validator_uptime = parse_uptime(parts[1].strip())
         elif 'Local validator out of sync:' in line:
             try:
                 local_validator_out_of_sync = int(line.split(':')[-1].strip().split()[0])
@@ -119,6 +142,8 @@ def collect_metrics():
     local_validator_out_of_sync_metric.set(local_validator_out_of_sync)
     local_validator_last_state_serialization_metric.set(local_validator_last_state_serialization)
     local_validator_database_size_metric.set(local_validator_database_size)
+    mytoncore_uptime_metric.set(mytoncore_uptime)
+    local_validator_uptime_metric.set(local_validator_uptime)
 
     # Устанавливаем значения меток
     network_info_metric.info({'name': network_name})
