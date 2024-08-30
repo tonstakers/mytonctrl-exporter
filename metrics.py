@@ -1,6 +1,7 @@
 import subprocess
 import re
 import os
+from datetime import datetime
 from prometheus_client import start_http_server, Gauge, generate_latest, Info
 from prometheus_client.core import CollectorRegistry
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -37,6 +38,14 @@ hold_period_metric = Gauge('myton_hold_period', 'Hold period in seconds', regist
 minimum_stake_metric = Gauge('myton_minimum_stake', 'Minimum stake', registry=registry)
 maximum_stake_metric = Gauge('myton_maximum_stake', 'Maximum stake', registry=registry)
 
+# Метрики для временных меток
+network_launched_metric = Gauge('myton_network_launched', 'TON network launch timestamp', registry=registry)
+start_validation_cycle_metric = Gauge('myton_start_validation_cycle', 'Start of the validation cycle timestamp', registry=registry)
+end_validation_cycle_metric = Gauge('myton_end_validation_cycle', 'End of the validation cycle timestamp', registry=registry)
+start_elections_metric = Gauge('myton_start_elections', 'Start of elections timestamp', registry=registry)
+end_elections_metric = Gauge('myton_end_elections', 'End of elections timestamp', registry=registry)
+begin_next_elections_metric = Gauge('myton_begin_next_elections', 'Beginning of the next elections timestamp', registry=registry)
+
 # Регулярное выражение для удаления управляющих символов ANSI
 ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 
@@ -57,15 +66,20 @@ def parse_uptime(uptime_str):
     else:
         return time_value  # Предполагаем, что это уже секунды
 
-def collect_metrics():
-    # Выполняем команду и получаем её вывод
-    output = subprocess.getoutput("echo 'status' | mytonctrl")
+def parse_timestamp(timestamp_str):
+    """Парсинг строки времени в Unix время."""
+    try:
+        dt = datetime.strptime(timestamp_str, '%d.%m.%Y %H:%M:%S UTC')
+        return int(dt.timestamp())
+    except ValueError:
+        return -100
 
-    # Удаляем управляющие символы ANSI
+def collect_metrics():
+    output = subprocess.getoutput("echo 'status' | mytonctrl")
     output = ansi_escape.sub('', output)
 
     # Инициализация значений метрик
-    validator_index = -1
+    validator_index = -100
     online_validators = -100
     all_validators = -100
     local_wallet_balance = 0
@@ -90,6 +104,12 @@ def collect_metrics():
     local_validator_database_size = -100
     version_mytonctrl = "unknown"
     version_validator = "unknown"
+    network_launched = -100
+    start_validation_cycle = -100
+    end_validation_cycle = -100
+    start_elections = -100
+    end_elections = -100
+    begin_next_elections = -100
 
     for line in output.splitlines():
         line = clean_line(line)  # Очищаем строку от ANSI символов перед обработкой
@@ -176,6 +196,24 @@ def collect_metrics():
             except ValueError:
                 minimum_stake = -100
                 maximum_stake = -100
+        elif 'TON network was launched:' in line:
+            timestamp_str = ':'.join(line.split(':')[1:]).strip()
+            network_launched = parse_timestamp(timestamp_str)
+        elif 'Start of the validation cycle:' in line:
+            timestamp_str = ':'.join(line.split(':')[1:]).strip()
+            start_validation_cycle = parse_timestamp(timestamp_str)
+        elif 'End of the validation cycle:' in line:
+            timestamp_str = ':'.join(line.split(':')[1:]).strip()
+            end_validation_cycle = parse_timestamp(timestamp_str)
+        elif 'Start of elections:' in line:
+            timestamp_str = ':'.join(line.split(':')[1:]).strip()
+            start_elections = parse_timestamp(timestamp_str)
+        elif 'End of elections:' in line:
+            timestamp_str = ':'.join(line.split(':')[1:]).strip()
+            end_elections = parse_timestamp(timestamp_str)
+        elif 'Beginning of the next elections:' in line:
+            timestamp_str = ':'.join(line.split(':')[1:]).strip()
+            begin_next_elections = parse_timestamp(timestamp_str)
 
     # Устанавливаем значения метрик
     validator_index_metric.set(validator_index)
@@ -191,6 +229,12 @@ def collect_metrics():
     hold_period_metric.set(hold_period)
     minimum_stake_metric.set(minimum_stake)
     maximum_stake_metric.set(maximum_stake)
+    network_launched_metric.set(network_launched)
+    start_validation_cycle_metric.set(start_validation_cycle)
+    end_validation_cycle_metric.set(end_validation_cycle)
+    start_elections_metric.set(start_elections)
+    end_elections_metric.set(end_elections)
+    begin_next_elections_metric.set(begin_next_elections)
 
     # Устанавливаем значения меток
     network_info_metric.info({'name': network_name})
