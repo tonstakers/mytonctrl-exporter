@@ -28,8 +28,21 @@ adnl_address_info_metric = Info('myton_adnl_address', 'ADNL address of the local
 public_adnl_address_info_metric = Info('myton_public_adnl_address', 'Public ADNL address of node', registry=registry)
 wallet_address_info_metric = Info('myton_wallet_address', 'Local validator wallet address', registry=registry)
 
+# Метрики для TON network configuration
+configurator_address_metric = Info('myton_configurator_address', 'Configurator address', registry=registry)
+elector_address_metric = Info('myton_elector_address', 'Elector address', registry=registry)
+validation_period_metric = Gauge('myton_validation_period', 'Validation period in seconds', registry=registry)
+duration_of_elections_metric = Info('myton_duration_of_elections', 'Duration of elections', registry=registry)
+hold_period_metric = Gauge('myton_hold_period', 'Hold period in seconds', registry=registry)
+minimum_stake_metric = Gauge('myton_minimum_stake', 'Minimum stake', registry=registry)
+maximum_stake_metric = Gauge('myton_maximum_stake', 'Maximum stake', registry=registry)
+
 # Регулярное выражение для удаления управляющих символов ANSI
-ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
+
+def clean_line(line):
+    """Удаляем управляющие символы ANSI из строки."""
+    return ansi_escape.sub('', line)
 
 def parse_uptime(uptime_str):
     """Парсинг строки времени работы и преобразование в секунды."""
@@ -51,13 +64,18 @@ def collect_metrics():
     # Удаляем управляющие символы ANSI
     output = ansi_escape.sub('', output)
 
-    # Парсинг вывода
+    # Инициализация значений метрик
     validator_index = -1
     online_validators = -100
     all_validators = -100
     local_wallet_balance = 0
-
-    # По умолчанию значения меток пустые
+    configurator_address = "unknown"
+    elector_address = "unknown"
+    validation_period = -100
+    duration_of_elections = "unknown"
+    hold_period = -100
+    minimum_stake = -100
+    maximum_stake = -100
     network_name = "unknown"
     election_status = "unknown"
     adnl_address = "unknown"
@@ -74,6 +92,7 @@ def collect_metrics():
     version_validator = "unknown"
 
     for line in output.splitlines():
+        line = clean_line(line)  # Очищаем строку от ANSI символов перед обработкой
         if 'Validator index:' in line:
             try:
                 validator_index = int(line.split(':')[-1].strip())
@@ -133,6 +152,30 @@ def collect_metrics():
             version_mytonctrl = line.split(':')[-1].strip()
         elif 'Version validator:' in line:
             version_validator = line.split(':')[-1].strip()
+        elif 'Configurator address:' in line:
+            configurator_address = line.split(':')[-1].strip()
+        elif 'Elector address:' in line:
+            elector_address = line.split(':')[-1].strip()
+        elif 'Validation period:' in line:
+            try:
+                parts = line.split(',')
+                validation_period = int(parts[0].split(':')[-1].strip())
+                duration_of_elections = parts[1].split(':')[-1].strip()
+                hold_period = int(parts[2].split(':')[-1].strip())
+            except (ValueError, IndexError):
+                validation_period = -100
+                duration_of_elections = "unknown"
+                hold_period = -100
+        elif 'Minimum stake:' in line and 'Maximum stake:' in line:
+            try:
+                parts = line.split(',')
+                minimum_stake_part = parts[0].split(':')[-1].strip()
+                maximum_stake_part = parts[1].split(':')[-1].strip()
+                minimum_stake = float(minimum_stake_part)
+                maximum_stake = float(maximum_stake_part)
+            except ValueError:
+                minimum_stake = -100
+                maximum_stake = -100
 
     # Устанавливаем значения метрик
     validator_index_metric.set(validator_index)
@@ -144,6 +187,10 @@ def collect_metrics():
     local_validator_database_size_metric.set(local_validator_database_size)
     mytoncore_uptime_metric.set(mytoncore_uptime)
     local_validator_uptime_metric.set(local_validator_uptime)
+    validation_period_metric.set(validation_period)
+    hold_period_metric.set(hold_period)
+    minimum_stake_metric.set(minimum_stake)
+    maximum_stake_metric.set(maximum_stake)
 
     # Устанавливаем значения меток
     network_info_metric.info({'name': network_name})
@@ -155,6 +202,9 @@ def collect_metrics():
     local_validator_status_metric.info({'status': local_validator_status})
     version_mytonctrl_metric.info({'version': version_mytonctrl})
     version_validator_metric.info({'version': version_validator})
+    configurator_address_metric.info({'address': configurator_address})
+    elector_address_metric.info({'address': elector_address})
+    duration_of_elections_metric.info({'duration': duration_of_elections})
 
 class MyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
