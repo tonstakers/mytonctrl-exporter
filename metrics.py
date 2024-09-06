@@ -26,7 +26,7 @@ version_mytonctrl_metric = Info('myton_version_mytonctrl', 'Version of MyTonCtrl
 version_validator_metric = Info('myton_version_validator', 'Version of Validator', registry=registry)
 network_info_metric = Info('myton_network_info', 'Network name', registry=registry)
 election_status_info_metric = Info('myton_election_status', 'Election status', registry=registry)
-adnl_address_info_metric = Info('myton_adnl_address', 'ADNL address of the local validator', registry=registry)
+local_adnl_address_info_metric = Info('myton_local_adnl_address', 'ADNL address of the local validator', registry=registry)  # Переименовано
 public_adnl_address_info_metric = Info('myton_public_adnl_address', 'Public ADNL address of node', registry=registry)
 wallet_address_info_metric = Info('myton_wallet_address', 'Local validator wallet address', registry=registry)
 
@@ -94,7 +94,7 @@ def collect_metrics():
     maximum_stake = -100
     network_name = "unknown"
     election_status = "unknown"
-    adnl_address = "unknown"
+    local_adnl_address = "unknown"
     public_adnl_address = "unknown"
     wallet_address = "unknown"
     mytoncore_status = "unknown"
@@ -144,7 +144,7 @@ def collect_metrics():
         elif 'Election status:' in line:
             election_status = line.split(':')[-1].strip()
         elif 'ADNL address of local validator:' in line:
-            adnl_address = line.split(':')[-1].strip()
+            local_adnl_address = line.split(':')[-1].strip()  # Переименовано
         elif 'Public ADNL address of node:' in line:
             public_adnl_address = line.split(':')[-1].strip()
         elif 'Local validator wallet address:' in line:
@@ -171,9 +171,7 @@ def collect_metrics():
                 local_validator_out_of_sync = -100
         elif 'Local validator last state serialization:' in line:
             try:
-                local_validator_last_state_serialization = int(line.split(':')
-
-[-1].strip().split()[0])
+                local_validator_last_state_serialization = int(line.split(':')[-1].strip().split()[0])
             except ValueError:
                 local_validator_last_state_serialization = -100
         elif 'Local validator database size:' in line:
@@ -255,7 +253,7 @@ def collect_metrics():
     elector_address_metric.info({'address': elector_address})
     network_info_metric.info({'name': network_name})
     election_status_info_metric.info({'status': election_status})
-    adnl_address_info_metric.info({'address': adnl_address})
+    local_adnl_address_info_metric.info({'address': local_adnl_address})  # Переименовано
     public_adnl_address_info_metric.info({'address': public_adnl_address})
     wallet_address_info_metric.info({'address': wallet_address})
     mytoncore_status_metric.info({'status': mytoncore_status})
