@@ -1,3 +1,4 @@
+# Version 0.4.2
 import subprocess
 import re
 import os
