@@ -12,6 +12,7 @@ validator_index_metric = Gauge('myton_validator_index', 'Index of the local vali
 online_validators_metric = Gauge('myton_online_validators', 'Number of online validators', registry=registry)
 all_validators_metric = Gauge('myton_all_validators', 'Total number of validators', registry=registry)
 local_wallet_balance_metric = Gauge('myton_local_validator_wallet_balance', 'Balance of the local validator wallet', registry=registry)
+validator_efficiency_metric = Gauge('myton_validator_efficiency', 'Efficiency of the local validator', registry=registry)
 
 # Дополнительные метрики
 mytoncore_status_metric = Info('myton_mytoncore_status', 'Status of Mytoncore', registry=registry)
@@ -80,6 +81,7 @@ def collect_metrics():
 
     # Инициализация значений метрик
     validator_index = -100
+    validator_efficiency = -100
     online_validators = -100
     all_validators = -100
     local_wallet_balance = 0
@@ -118,6 +120,15 @@ def collect_metrics():
                 validator_index = int(line.split(':')[-1].strip())
             except ValueError:
                 validator_index = -100
+        elif 'Validator efficiency:' in line:
+            try:
+                efficiency_str = line.split(':')[-1].strip()
+                if efficiency_str == "n/a":
+                    validator_efficiency = -1
+                else:
+                    validator_efficiency = float(efficiency_str.replace('%', '').strip())
+            except ValueError:
+                validator_efficiency = -100
         elif 'Number of validators:' in line:
             numbers = line.split(':')[-1].strip()
             try:
@@ -160,7 +171,9 @@ def collect_metrics():
                 local_validator_out_of_sync = -100
         elif 'Local validator last state serialization:' in line:
             try:
-                local_validator_last_state_serialization = int(line.split(':')[-1].strip().split()[0])
+                local_validator_last_state_serialization = int(line.split(':')
+
+[-1].strip().split()[0])
             except ValueError:
                 local_validator_last_state_serialization = -100
         elif 'Local validator database size:' in line:
@@ -173,9 +186,9 @@ def collect_metrics():
         elif 'Version validator:' in line:
             version_validator = line.split(':')[-1].strip()
         elif 'Configurator address:' in line:
-            configurator_address = line.split(':')[-1].strip()
+            configurator_address = line.split(':', 1)[-1].strip()  # Сохранение префикса
         elif 'Elector address:' in line:
-            elector_address = line.split(':')[-1].strip()
+            elector_address = line.split(':', 1)[-1].strip()  # Сохранение префикса
         elif 'Validation period:' in line:
             try:
                 parts = line.split(',')
@@ -217,6 +230,7 @@ def collect_metrics():
 
     # Устанавливаем значения метрик
     validator_index_metric.set(validator_index)
+    validator_efficiency_metric.set(validator_efficiency)
     online_validators_metric.set(online_validators)
     all_validators_metric.set(all_validators)
     local_wallet_balance_metric.set(local_wallet_balance)
@@ -236,7 +250,9 @@ def collect_metrics():
     end_elections_metric.set(end_elections)
     begin_next_elections_metric.set(begin_next_elections)
 
-    # Устанавливаем значения меток
+    # Устанавливаем значения меток с сохранением префикса
+    configurator_address_metric.info({'address': configurator_address})
+    elector_address_metric.info({'address': elector_address})
     network_info_metric.info({'name': network_name})
     election_status_info_metric.info({'status': election_status})
     adnl_address_info_metric.info({'address': adnl_address})
@@ -246,9 +262,6 @@ def collect_metrics():
     local_validator_status_metric.info({'status': local_validator_status})
     version_mytonctrl_metric.info({'version': version_mytonctrl})
     version_validator_metric.info({'version': version_validator})
-    configurator_address_metric.info({'address': configurator_address})
-    elector_address_metric.info({'address': elector_address})
-    duration_of_elections_metric.info({'duration': duration_of_elections})
 
 class MyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
