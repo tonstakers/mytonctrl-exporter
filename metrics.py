@@ -7,7 +7,7 @@ from prometheus_client import start_http_server, Gauge, generate_latest, Info
 from prometheus_client.core import CollectorRegistry
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# Создаем метрики с префиксом myton_
+# Create metrics with the prefix myton_
 registry = CollectorRegistry()
 validator_index_metric = Gauge('myton_validator_index', 'Index of the local validator', registry=registry)
 online_validators_metric = Gauge('myton_online_validators', 'Number of online validators', registry=registry)
@@ -15,7 +15,7 @@ all_validators_metric = Gauge('myton_all_validators', 'Total number of validator
 local_wallet_balance_metric = Gauge('myton_local_validator_wallet_balance', 'Balance of the local validator wallet', registry=registry)
 validator_efficiency_metric = Gauge('myton_validator_efficiency', 'Efficiency of the local validator', registry=registry)
 
-# Дополнительные метрики
+# Additional metrics
 mytoncore_status_metric = Info('myton_mytoncore_status', 'Status of Mytoncore', registry=registry)
 mytoncore_uptime_metric = Gauge('myton_mytoncore_uptime', 'Uptime of Mytoncore in seconds', registry=registry)
 local_validator_status_metric = Info('myton_local_validator_status', 'Status of Local Validator', registry=registry)
@@ -27,11 +27,11 @@ version_mytonctrl_metric = Info('myton_version_mytonctrl', 'Version of MyTonCtrl
 version_validator_metric = Info('myton_version_validator', 'Version of Validator', registry=registry)
 network_info_metric = Info('myton_network_info', 'Network name', registry=registry)
 election_status_info_metric = Info('myton_election_status', 'Election status', registry=registry)
-local_adnl_address_info_metric = Info('myton_local_adnl_address', 'ADNL address of the local validator', registry=registry)  # Переименовано
+local_adnl_address_info_metric = Info('myton_local_adnl_address', 'ADNL address of the local validator', registry=registry)
 public_adnl_address_info_metric = Info('myton_public_adnl_address', 'Public ADNL address of node', registry=registry)
 wallet_address_info_metric = Info('myton_wallet_address', 'Local validator wallet address', registry=registry)
 
-# Метрики для TON network configuration
+# metrics for TON network configuration
 configurator_address_metric = Info('myton_configurator_address', 'Configurator address', registry=registry)
 elector_address_metric = Info('myton_elector_address', 'Elector address', registry=registry)
 validation_period_metric = Gauge('myton_validation_period', 'Validation period in seconds', registry=registry)
@@ -40,7 +40,7 @@ hold_period_metric = Gauge('myton_hold_period', 'Hold period in seconds', regist
 minimum_stake_metric = Gauge('myton_minimum_stake', 'Minimum stake', registry=registry)
 maximum_stake_metric = Gauge('myton_maximum_stake', 'Maximum stake', registry=registry)
 
-# Метрики для временных меток
+# Metrics for timestamps
 network_launched_metric = Gauge('myton_network_launched', 'TON network launch timestamp', registry=registry)
 start_validation_cycle_metric = Gauge('myton_start_validation_cycle', 'Start of the validation cycle timestamp', registry=registry)
 end_validation_cycle_metric = Gauge('myton_end_validation_cycle', 'End of the validation cycle timestamp', registry=registry)
@@ -48,28 +48,28 @@ start_elections_metric = Gauge('myton_start_elections', 'Start of elections time
 end_elections_metric = Gauge('myton_end_elections', 'End of elections timestamp', registry=registry)
 begin_next_elections_metric = Gauge('myton_begin_next_elections', 'Beginning of the next elections timestamp', registry=registry)
 
-# Регулярное выражение для удаления управляющих символов ANSI
+# Regular expression to remove ANSI control characters
 ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
 
 def clean_line(line):
-    """Удаляем управляющие символы ANSI из строки."""
+    """Remove ANSI control characters from a string."""
     return ansi_escape.sub('', line)
 
 def parse_uptime(uptime_str):
-    """Парсинг строки времени работы и преобразование в секунды."""
+    """Parse the running time string and convert it to seconds."""
     time_value, unit = uptime_str.split()
     time_value = int(time_value)
     if 'day' in unit:
-        return time_value * 86400  # Конвертация дней в секунды
+        return time_value * 86400  # Convert days to seconds
     elif 'hour' in unit:
-        return time_value * 3600  # Конвертация часов в секунды
+        return time_value * 3600  # Convert hours to seconds
     elif 'minute' in unit:
-        return time_value * 60  # Конвертация минут в секунды
+        return time_value * 60  # Convert minutes to seconds
     else:
-        return time_value  # Предполагаем, что это уже секунды
+        return time_value  # We assume that it is already seconds
 
 def parse_timestamp(timestamp_str):
-    """Парсинг строки времени в Unix время."""
+    """Parsing time string into Unix time."""
     try:
         dt = datetime.strptime(timestamp_str, '%d.%m.%Y %H:%M:%S UTC')
         return int(dt.timestamp())
@@ -80,7 +80,7 @@ def collect_metrics():
     output = subprocess.getoutput("echo 'status' | mytonctrl")
     output = ansi_escape.sub('', output)
 
-    # Инициализация значений метрик
+    # Initialize metric values
     validator_index = -100
     validator_efficiency = -100
     online_validators = -100
@@ -115,7 +115,7 @@ def collect_metrics():
     begin_next_elections = -100
 
     for line in output.splitlines():
-        line = clean_line(line)  # Очищаем строку от ANSI символов перед обработкой
+        line = clean_line(line)  # Clean the line from ANSI symbols before processing
         if 'Validator index:' in line:
             try:
                 validator_index = int(line.split(':')[-1].strip())
@@ -145,7 +145,7 @@ def collect_metrics():
         elif 'Election status:' in line:
             election_status = line.split(':')[-1].strip()
         elif 'ADNL address of local validator:' in line:
-            local_adnl_address = line.split(':')[-1].strip()  # Переименовано
+            local_adnl_address = line.split(':')[-1].strip()  # Renamed
         elif 'Public ADNL address of node:' in line:
             public_adnl_address = line.split(':')[-1].strip()
         elif 'Local validator wallet address:' in line:
@@ -185,9 +185,9 @@ def collect_metrics():
         elif 'Version validator:' in line:
             version_validator = line.split(':')[-1].strip()
         elif 'Configurator address:' in line:
-            configurator_address = line.split(':', 1)[-1].strip()  # Сохранение префикса
+            configurator_address = line.split(':', 1)[-1].strip()  # Keep the prefix
         elif 'Elector address:' in line:
-            elector_address = line.split(':', 1)[-1].strip()  # Сохранение префикса
+            elector_address = line.split(':', 1)[-1].strip()  # Keep the prefix
         elif 'Validation period:' in line:
             try:
                 parts = line.split(',')
@@ -227,7 +227,7 @@ def collect_metrics():
             timestamp_str = ':'.join(line.split(':')[1:]).strip()
             begin_next_elections = parse_timestamp(timestamp_str)
 
-    # Устанавливаем значения метрик
+    # Set metric values
     validator_index_metric.set(validator_index)
     validator_efficiency_metric.set(validator_efficiency)
     online_validators_metric.set(online_validators)
@@ -249,12 +249,12 @@ def collect_metrics():
     end_elections_metric.set(end_elections)
     begin_next_elections_metric.set(begin_next_elections)
 
-    # Устанавливаем значения меток с сохранением префикса
+    # Set label values with prefix retention
     configurator_address_metric.info({'address': configurator_address})
     elector_address_metric.info({'address': elector_address})
     network_info_metric.info({'name': network_name})
     election_status_info_metric.info({'status': election_status})
-    local_adnl_address_info_metric.info({'address': local_adnl_address})  # Переименовано
+    local_adnl_address_info_metric.info({'address': local_adnl_address})  # Renamed
     public_adnl_address_info_metric.info({'address': public_adnl_address})
     wallet_address_info_metric.info({'address': wallet_address})
     mytoncore_status_metric.info({'status': mytoncore_status})
@@ -276,7 +276,7 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
 def run(server_class=HTTPServer, handler_class=MyHandler):
-    # Порт и адрес берутся из переменных окружения или используются значения по умолчанию
+    # Port and address are taken from environment variables or default values are used
     port = int(os.getenv('MTCRL_EXPORTER_PORT', '9140'))
     bind_addr = os.getenv('MTCRL_EXPORTER_BIND_ADDR', '')
 
